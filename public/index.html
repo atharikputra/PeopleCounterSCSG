@@ -1,0 +1,1521 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>People Counter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+    /* ============ Desktop first ============ */
+    :root {
+        --bg: #f1f1f3;
+        --panel: #ffffff;
+        --subtle: #f5f5f7;
+        --border: #e6e6ea;
+        --text: #18181b;
+        --muted: #71717a;
+        --dark: #111113;
+        --purple: #b54ce6;
+        --purple-soft: #f4e6fb;
+        --teal: #35b3c6;
+        --green: #16a34a;
+        --amber: #d97706;
+        --red: #e5484d;
+        --radius: 14px;
+        --head: 150px;
+        --shadow: 0 1px 2px rgba(16, 16, 20, .05);
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    html, body { height: 100%; }
+    body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.45 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+    }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    .i {
+        width: 18px; height: 18px; flex: none;
+        fill: none; stroke: currentColor; stroke-width: 1.8;
+        stroke-linecap: round; stroke-linejoin: round;
+    }
+
+    .app {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        height: 100vh;
+        padding: 12px 12px 12px 0;
+    }
+
+    /* ---------- Rail ---------- */
+    .rail {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+    }
+    .logo {
+        width: 40px; height: 40px;
+        display: grid; place-items: center;
+        border-radius: 12px;
+        background: var(--dark);
+        color: #fff;
+        margin-bottom: 14px;
+    }
+    .rail-btn {
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        width: 58px; padding: 9px 0;
+        border: 0; border-radius: 12px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 11px; font-weight: 500;
+    }
+    .rail-btn:hover { color: var(--text); }
+    .rail-btn.active { background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+
+    /* ---------- Main ---------- */
+    .main {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        gap: 12px;
+        min-width: 0;
+        min-height: 0;
+    }
+    .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+    }
+
+    /* ---------- Topbar ---------- */
+    .topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+    }
+    .title {
+        margin: 0;
+        min-width: 0;
+        font-size: 17px; font-weight: 700; letter-spacing: -.01em;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .spacer { flex: 1; }
+    .badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: var(--subtle);
+        border: 1px solid var(--border);
+        font-size: 12px; font-weight: 500;
+        white-space: nowrap;
+    }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .badge[data-state="live"]::before { background: var(--green); box-shadow: 0 0 0 3px rgba(22, 163, 74, .18); }
+    .badge[data-state="busy"]::before { background: var(--amber); }
+    .badge[data-state="error"]::before { background: var(--red); }
+    .badge[data-state="done"]::before { background: var(--purple); }
+    .source-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        max-width: 240px;
+        color: var(--muted); font-size: 13px;
+    }
+    .source-pill span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+        min-height: 36px;
+        padding: 0 14px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: var(--subtle); }
+    .btn-dark { background: var(--dark); border-color: var(--dark); color: #fff; }
+    .btn-dark:hover:not(:disabled) { background: #2a2a2e; }
+    .btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #d13b40; }
+    .btn-block { width: 100%; }
+    .icon-btn {
+        width: 34px; height: 34px;
+        display: grid; place-items: center;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+    }
+    .icon-btn:hover:not(:disabled) { background: var(--subtle); }
+    .icon-btn.active { background: var(--dark); border-color: var(--dark); color: #fff; }
+
+    /* ---------- Workspace ---------- */
+    .workspace {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr) 320px;
+        grid-template-areas: "left preview right";
+        gap: 12px;
+        min-height: 0;
+    }
+    #leftPanel { grid-area: left; }
+    #rightPanel { grid-area: right; }
+    .preview { grid-area: preview; }
+
+    .panel { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+    .tabs { display: flex; gap: 4px; padding: 10px; border-bottom: 1px solid var(--border); }
+    .tab {
+        flex: 1;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        padding: 7px 8px;
+        border-radius: 9px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        font-size: 13px; font-weight: 500;
+    }
+    .tab .i { width: 16px; height: 16px; }
+    .tab.active { background: var(--subtle); border-color: var(--border); color: var(--text); }
+    .panel-body { flex: 1; overflow: auto; padding: 12px; }
+    .panel-foot {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 12px;
+        border-top: 1px solid var(--border);
+    }
+    .plan-info { display: flex; flex-direction: column; min-width: 0; }
+    .plan-info small { color: var(--muted); font-size: 11px; }
+    .plan-info b { font-size: 13px; font-weight: 600; white-space: nowrap; }
+
+    .hint { color: var(--muted); font-size: 12px; margin: 10px 0; }
+
+    /* Camera list */
+    .device-list { display: flex; flex-direction: column; gap: 8px; }
+    .device {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%;
+        padding: 10px;
+        text-align: left;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+    }
+    .device:hover { background: var(--subtle); }
+    .device.active { border-color: var(--purple); background: var(--purple-soft); }
+    .device-icon {
+        width: 38px; height: 38px;
+        display: grid; place-items: center;
+        border-radius: 10px;
+        background: var(--subtle);
+    }
+    .device.active .device-icon { background: var(--purple); color: #fff; }
+    .device-text { display: flex; flex-direction: column; min-width: 0; }
+    .device-text strong { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .device-text small { font-size: 11px; color: var(--muted); }
+
+    /* Media library */
+    .search {
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 10px;
+        margin-bottom: 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+    }
+    .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; padding: 9px 0; color: var(--text); }
+    .media-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .media {
+        display: flex; flex-direction: column; gap: 6px;
+        padding: 0; border: 0; background: none;
+        text-align: left; min-width: 0;
+        cursor: pointer;
+    }
+    .thumb {
+        position: relative;
+        display: grid; place-items: center; align-content: center; gap: 4px;
+        aspect-ratio: 4 / 3;
+        border-radius: 10px;
+        background: var(--subtle) center / cover no-repeat;
+        color: var(--muted);
+        font-size: 12px;
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+    }
+    .media.active .thumb { outline-color: var(--purple); }
+    .media.import .thumb { border: 1px dashed #d4d4d8; }
+    .media.import:hover .thumb { background-color: #ececf0; color: var(--text); }
+    .dur {
+        position: absolute; right: 6px; bottom: 6px;
+        padding: 1px 6px;
+        border-radius: 6px;
+        background: rgba(0, 0, 0, .65);
+        color: #fff; font-size: 10px; font-weight: 500;
+    }
+    .media-name { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Preview */
+    .preview { display: flex; flex-direction: column; gap: 12px; min-height: 0; min-width: 0; }
+    .stage {
+        position: relative;
+        flex: 1;
+        min-height: 0;
+        background: #0c0c0e;
+        border-radius: var(--radius);
+        overflow: hidden;
+    }
+    .stage video { display: block; width: 100%; height: 100%; object-fit: contain; }
+    #overlay { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+    .placeholder {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+        padding: 16px;
+        text-align: center;
+        color: #a1a1aa;
+    }
+    .placeholder .i { width: 40px; height: 40px; stroke-width: 1.4; margin-bottom: 6px; }
+    .placeholder strong { color: #fff; font-weight: 600; }
+    .caption {
+        position: absolute; left: 50%; bottom: 16px;
+        transform: translateX(-50%);
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 12px;
+        border-radius: 8px;
+        background: rgba(17, 17, 19, .78);
+        color: #fff; font-size: 13px;
+        backdrop-filter: blur(6px);
+        white-space: nowrap;
+    }
+    .preview-bar {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 12px;
+    }
+    .timecode { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .timecode b { color: var(--text); font-size: 13px; }
+    .rec { width: 8px; height: 8px; border-radius: 50%; background: #d4d4d8; }
+    .is-running .rec { background: var(--red); animation: blink 1.2s infinite; }
+    @keyframes blink { 50% { opacity: .3; } }
+    .play {
+        width: 44px; height: 44px;
+        display: grid; place-items: center;
+        border-radius: 50%;
+        border: 0;
+        background: var(--dark);
+        color: #fff;
+    }
+    .play.running { background: var(--red); }
+    .bar-right { justify-self: end; display: flex; gap: 6px; }
+
+    /* Results */
+    .alert {
+        margin-bottom: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fdecec;
+        color: #b42318;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .count-card { padding: 16px; border-radius: 12px; background: var(--dark); color: #fff; }
+    .count-top { display: flex; justify-content: space-between; align-items: center; color: #a1a1aa; font-size: 12px; }
+    .count-value { font-size: 56px; font-weight: 700; line-height: 1.1; margin-top: 8px; font-variant-numeric: tabular-nums; }
+    .count-sub { color: #a1a1aa; font-size: 12px; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .stat { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); }
+    .stat span { display: block; color: var(--muted); font-size: 11px; }
+    .stat b { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .section-title { margin: 18px 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+    .det-list { display: flex; flex-direction: column; }
+    .det { display: grid; grid-template-columns: 90px 1fr 38px; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+    .det-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .det .bar { height: 6px; border-radius: 3px; background: var(--subtle); overflow: hidden; }
+    .det .bar span { display: block; height: 100%; background: var(--purple); border-radius: 3px; }
+    .det-conf { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .empty { color: var(--muted); font-size: 12px; margin: 4px 0; }
+
+    /* Settings */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .field > label, .field-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+    select {
+        appearance: none;
+        width: 100%;
+        padding: 9px 34px 9px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--panel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2371717a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E") right 10px center no-repeat;
+    }
+    .chips { display: flex; gap: 6px; }
+    .chip {
+        flex: 1;
+        padding: 7px 0;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        font-size: 13px; font-weight: 500;
+    }
+    .chip.active { border-color: var(--dark); background: var(--subtle); font-weight: 600; }
+    .switch { position: relative; display: flex; align-items: center; gap: 10px; padding: 5px 0; cursor: pointer; font-size: 13px; }
+    .switch input { position: absolute; opacity: 0; pointer-events: none; }
+    .switch .track { position: relative; width: 34px; height: 20px; border-radius: 999px; background: #d4d4d8; transition: background .15s; flex: none; }
+    .switch .track::after {
+        content: ""; position: absolute; top: 2px; left: 2px;
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #fff; transition: transform .15s;
+    }
+    .switch input:checked + .track { background: var(--dark); }
+    .switch input:checked + .track::after { transform: translateX(14px); }
+    .switch input:focus-visible + .track { outline: 2px solid var(--purple); outline-offset: 2px; }
+
+    .is-running .device, .is-running .media:not(.import) { pointer-events: none; opacity: .55; }
+
+    /* ---------- Timeline ---------- */
+    .timeline { overflow: hidden; }
+    .tl-toolbar {
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+    }
+    .tl-group { display: flex; align-items: center; gap: 6px; }
+    .tl-title { flex: 1; font-size: 12px; font-weight: 600; color: var(--muted); }
+    .zoom input { width: 120px; accent-color: var(--dark); }
+    .tl-body { position: relative; user-select: none; touch-action: pan-y; cursor: grab; }
+    .tl-body:active { cursor: grabbing; }
+    .tl-row { display: grid; grid-template-columns: var(--head) minmax(0, 1fr); border-bottom: 1px solid var(--border); }
+    .tl-row:last-of-type { border-bottom: 0; }
+    .tl-head {
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 14px;
+        border-right: 1px solid var(--border);
+        color: var(--muted); font-size: 12px; font-weight: 500;
+    }
+    .tl-head .i { width: 16px; height: 16px; }
+    .tl-info {
+        margin-left: auto;
+        width: 24px; height: 24px;
+        display: grid; place-items: center;
+        padding: 0;
+        border: 0; border-radius: 6px;
+        background: transparent;
+        color: #a1a1aa;
+        cursor: help;
+    }
+    .tl-info .i { width: 15px; height: 15px; }
+    .tl-info:hover, .tl-info[aria-expanded="true"] { color: var(--text); background: var(--subtle); }
+    .tl-info:focus-visible { outline: 2px solid var(--purple); outline-offset: 1px; }
+    .tooltip {
+        position: fixed; z-index: 50;
+        max-width: 280px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--dark);
+        color: #d4d4d8;
+        font-size: 12px; line-height: 1.5;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+        pointer-events: none;
+    }
+    .tooltip strong { display: block; margin-bottom: 2px; color: #fff; font-weight: 600; }
+    .tooltip::after {
+        content: "";
+        position: absolute; left: var(--ax, 50%);
+        width: 10px; height: 10px;
+        margin-left: -5px;
+        background: var(--dark);
+        transform: rotate(45deg);
+    }
+    .tooltip[data-place="top"]::after { bottom: -5px; }
+    .tooltip[data-place="bottom"]::after { top: -5px; }
+    .tl-lane { position: relative; height: 42px; overflow: hidden; }
+    .tl-ruler .tl-lane { height: 26px; }
+    .tl-inner { position: absolute; inset: 0; will-change: transform; }
+    .tick {
+        position: absolute; top: 0; bottom: 0;
+        padding: 5px 0 0 5px;
+        border-left: 1px solid var(--border);
+        color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums;
+    }
+    .seg {
+        position: absolute; top: 7px; bottom: 7px;
+        display: flex; align-items: center;
+        padding: 0 8px;
+        border-radius: 7px;
+        background: var(--purple);
+        color: #fff; font-size: 11px; font-weight: 500;
+        white-space: nowrap; overflow: hidden;
+    }
+    .seg.teal { background: var(--teal); }
+    #chart { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .playhead {
+        position: absolute; top: 0; bottom: 0;
+        left: calc(var(--head) + var(--x, 0px));
+        width: 2px; margin-left: -1px;
+        background: var(--text);
+        pointer-events: none;
+    }
+    .playhead::before {
+        content: ""; position: absolute; top: 2px; left: -5px;
+        width: 12px; height: 12px;
+        border-radius: 3px;
+        background: var(--text);
+    }
+
+    /* ============ Laptop kecil ============ */
+    @media (max-width: 1280px) {
+        .workspace { grid-template-columns: 260px minmax(0, 1fr) 290px; }
+        .source-pill { display: none; }
+    }
+
+    /* ============ Tablet ============ */
+    @media (max-width: 1100px) {
+        .app { height: auto; min-height: 100vh; }
+        .main { grid-template-rows: auto; }
+        .workspace {
+            grid-template-columns: 1fr 1fr;
+            grid-template-areas: "preview preview" "left right";
+        }
+        .stage { flex: none; aspect-ratio: 16 / 9; }
+        .panel { max-height: 560px; }
+    }
+
+    /* ============ Mobile ============ */
+    @media (max-width: 720px) {
+        :root { --head: 60px; }
+        .app {
+            grid-template-columns: minmax(0, 1fr);
+            padding: 12px 12px calc(80px + env(safe-area-inset-bottom));
+        }
+        .rail {
+            position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+            flex-direction: row; justify-content: space-around;
+            padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+            background: var(--panel);
+            border-top: 1px solid var(--border);
+        }
+        .logo { display: none; }
+        .rail-btn { flex: 1; max-width: 88px; }
+        .rail-btn.active { background: var(--subtle); box-shadow: none; }
+        .topbar { gap: 8px; padding: 8px 10px; }
+        .title { font-size: 15px; }
+        .btn .label { display: none; }
+        .btn { padding: 0 10px; }
+        .workspace {
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-areas: "preview" "right" "left";
+        }
+        .stage { aspect-ratio: 4 / 5; }
+        .panel { max-height: none; }
+        .panel-body { overflow: visible; }
+        .count-value { font-size: 48px; }
+        .tl-title { display: none; }
+        .zoom { flex: 1; justify-content: flex-end; }
+        .zoom input { width: 100%; max-width: 160px; }
+        .tl-head { justify-content: center; gap: 2px; padding: 0 4px; }
+        .tl-info { margin-left: 0; }
+        .tl-head .name { display: none; }
+    }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="10" r="3"/><path d="M7 18a5 5 0 0 1 10 0"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="m16 13 5.2 3.1a.5.5 0 0 0 .8-.4V8.3a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v18M17 3v18M3 7.5h4M3 12h18M3 16.5h4M17 7.5h4M17 16.5h4"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 16v-5M12 16V8M17 16v-8"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.9l10.8-6.8a1 1 0 0 0 0-1.7L9.5 4.3A1 1 0 0 0 8 5.2z" fill="currentColor"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V3M7 8l5-5 5 5M5 21h14"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></symbol>
+    <symbol id="i-zoom-in" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6M11 8v6"/></symbol>
+    <symbol id="i-zoom-out" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11h6"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/></symbol>
+</svg>
+
+<div class="app">
+    <!-- Rail navigasi (bottom nav di mobile) -->
+    <nav class="rail">
+        <div class="logo"><svg class="i"><use href="#i-scan"/></svg></div>
+        <button class="rail-btn active" data-rail="camera"><svg class="i"><use href="#i-camera"/></svg><span>Kamera</span></button>
+        <button class="rail-btn" data-rail="media"><svg class="i"><use href="#i-film"/></svg><span>Video</span></button>
+        <button class="rail-btn" data-rail="results"><svg class="i"><use href="#i-chart"/></svg><span>Hasil</span></button>
+        <button class="rail-btn" data-rail="settings"><svg class="i"><use href="#i-sliders"/></svg><span>Setelan</span></button>
+    </nav>
+
+    <main class="main">
+        <header class="topbar card">
+            <h1 class="title">People Counter</h1>
+            <div class="spacer"></div>
+            <div class="source-pill"><svg class="i"><use id="sourceIcon" href="#i-camera"/></svg><span id="sourceLabel">Kamera default</span></div>
+            <button class="btn" id="snapBtn" title="Simpan snapshot"><svg class="i"><use href="#i-image"/></svg><span class="label">Snapshot</span></button>
+            <button class="btn btn-dark" id="exportBtn" disabled title="Export hasil ke CSV"><svg class="i"><use href="#i-download"/></svg><span class="label">Export CSV</span></button>
+        </header>
+
+        <div class="workspace">
+            <!-- Panel sumber -->
+            <aside class="panel card" id="leftPanel">
+                <div class="tabs" data-tabs="left">
+                    <button class="tab active" data-tab="camera"><svg class="i"><use href="#i-camera"/></svg>Kamera</button>
+                    <button class="tab" data-tab="video"><svg class="i"><use href="#i-film"/></svg>Video</button>
+                </div>
+                <div class="panel-body" data-pane="left" data-name="camera">
+                    <div class="device-list" id="cameraList"></div>
+                    <p class="hint" id="cameraHint">Nama kamera muncul setelah akses kamera diizinkan.</p>
+                    <button class="btn btn-block" id="refreshCams"><svg class="i"><use href="#i-refresh"/></svg>Muat ulang kamera</button>
+                </div>
+                <div class="panel-body" data-pane="left" data-name="video" hidden>
+                    <label class="search">
+                        <svg class="i"><use href="#i-search"/></svg>
+                        <input id="mediaSearch" type="search" placeholder="Cari video">
+                    </label>
+                    <div class="media-grid" id="mediaGrid">
+                        <label class="media import" id="importTile">
+                            <span class="thumb"><svg class="i"><use href="#i-upload"/></svg>Import</span>
+                            <span class="media-name">Tambah video</span>
+                            <input type="file" id="importInput" accept="video/*" multiple hidden>
+                        </label>
+                    </div>
+                    <p class="hint" id="mediaEmpty">Import video (mp4, mov, webm) untuk dihitung di server Roboflow.</p>
+                </div>
+            </aside>
+
+            <!-- Preview -->
+            <section class="preview">
+                <div class="stage" id="stage">
+                    <video id="video" autoplay playsinline muted></video>
+                    <canvas id="overlay"></canvas>
+                    <div class="placeholder" id="placeholder">
+                        <svg class="i"><use href="#i-scan"/></svg>
+                        <strong>Belum ada stream</strong>
+                        <span>Pilih kamera atau video, lalu tekan Start</span>
+                    </div>
+                    <div class="caption" id="caption" hidden>
+                        <svg class="i"><use href="#i-users"/></svg><span><b id="captionCount">0</b> orang terdeteksi</span>
+                    </div>
+                </div>
+                <div class="preview-bar card">
+                    <div class="timecode"><span class="rec"></span><b id="timecode">00:00</b><span class="badge" id="status" data-state="idle">Siap</span></div>
+                    <button class="play" id="playBtn" title="Start"><svg class="i"><use id="playIcon" href="#i-play"/></svg></button>
+                    <div class="bar-right">
+                        <button class="icon-btn" id="snapBtn2" title="Snapshot"><svg class="i"><use href="#i-image"/></svg></button>
+                        <button class="icon-btn" id="fullBtn" title="Layar penuh"><svg class="i"><use href="#i-expand"/></svg></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Panel hasil & setelan -->
+            <aside class="panel card" id="rightPanel">
+                <div class="tabs" data-tabs="right">
+                    <button class="tab active" data-tab="results"><svg class="i"><use href="#i-chart"/></svg>Hasil</button>
+                    <button class="tab" data-tab="settings"><svg class="i"><use href="#i-sliders"/></svg>Setelan</button>
+                </div>
+                <div class="panel-body" data-pane="right" data-name="results">
+                    <div class="alert" id="alert" hidden></div>
+                    <div class="count-card">
+                        <div class="count-top"><span>Orang terdeteksi</span><svg class="i"><use href="#i-users"/></svg></div>
+                        <div class="count-value" id="count">–</div>
+                        <div class="count-sub" id="countSub">Belum ada data</div>
+                    </div>
+                    <div class="stats">
+                        <div class="stat"><span>Puncak</span><b id="statPeak">–</b></div>
+                        <div class="stat"><span>Rata-rata</span><b id="statAvg">–</b></div>
+                        <div class="stat"><span>FPS</span><b id="statFps">–</b></div>
+                        <div class="stat"><span>Durasi</span><b id="statDur">00:00</b></div>
+                    </div>
+                    <div class="section-title">Deteksi saat ini</div>
+                    <div class="det-list" id="detList"></div>
+                    <p class="empty" id="detEmpty">Belum ada objek terdeteksi.</p>
+                </div>
+                <div class="panel-body" data-pane="right" data-name="settings" hidden>
+                    <div class="field">
+                        <label for="plan">Plan GPU</label>
+                        <select id="plan">
+                            <option value="webrtc-gpu-small">GPU Small</option>
+                            <option value="webrtc-gpu-medium">GPU Medium</option>
+                            <option value="webrtc-gpu-large">GPU Large</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Region</span>
+                        <div class="chips" id="region">
+                            <button class="chip" data-value="us">US</button>
+                            <button class="chip" data-value="eu">EU</button>
+                            <button class="chip" data-value="ap">AP</button>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label for="timeout">Batas waktu proses</label>
+                        <select id="timeout">
+                            <option value="600">10 menit</option>
+                            <option value="1800">30 menit</option>
+                            <option value="3600">60 menit</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Overlay</span>
+                        <label class="switch"><input type="checkbox" id="optBoxes"><span class="track"></span>Tampilkan kotak deteksi</label>
+                        <label class="switch"><input type="checkbox" id="optLabels"><span class="track"></span>Tampilkan label & confidence</label>
+                    </div>
+                    <p class="hint">Plan, region & batas waktu berlaku saat Start berikutnya.</p>
+                </div>
+                <div class="panel-foot">
+                    <div class="plan-info"><small>Plan</small><b id="planInfo">GPU Medium · US</b></div>
+                    <button class="btn btn-dark" id="startBtn"><svg class="i"><use id="startIcon" href="#i-play"/></svg><span id="startLabel">Start</span></button>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Timeline -->
+        <section class="timeline card">
+            <div class="tl-toolbar">
+                <div class="tl-group">
+                    <button class="icon-btn" id="resetBtn" title="Bersihkan timeline"><svg class="i"><use href="#i-trash"/></svg></button>
+                    <button class="icon-btn active" id="followBtn" title="Ikuti waktu sekarang"><svg class="i"><use href="#i-target"/></svg></button>
+                </div>
+                <div class="tl-title">Timeline deteksi</div>
+                <div class="tl-group zoom">
+                    <button class="icon-btn" id="zoomOut" title="Perkecil"><svg class="i"><use href="#i-zoom-out"/></svg></button>
+                    <input type="range" id="zoom" min="5" max="200" value="40" aria-label="Zoom timeline">
+                    <button class="icon-btn" id="zoomIn" title="Perbesar"><svg class="i"><use href="#i-zoom-in"/></svg></button>
+                </div>
+            </div>
+            <div class="tl-body" id="tlBody">
+                <div class="tl-row tl-ruler">
+                    <div class="tl-head">
+                        <span class="name">Waktu</span>
+                        <button class="tl-info" aria-label="Info Waktu"
+                            data-tip-title="Waktu"
+                            data-tip="Lama waktu sejak tombol Start ditekan (menit:detik). Geser timeline dengan drag atau scroll ke samping. Ctrl + scroll atau slider di kanan atas untuk zoom."><svg class="i"><use href="#i-info"/></svg></button>
+                    </div>
+                    <div class="tl-lane"><div class="tl-inner" id="rulerInner"></div></div>
+                </div>
+                <div class="tl-row">
+                    <div class="tl-head">
+                        <svg class="i"><use href="#i-layers"/></svg><span class="name">Deteksi</span>
+                        <button class="tl-info" aria-label="Info Deteksi"
+                            data-tip-title="Deteksi (bar ungu)"
+                            data-tip="Menandai kapan ada orang di kamera. Bar ungu muncul selama minimal 1 orang terdeteksi, dan terputus saat tidak ada orang atau data berhenti lebih dari 1 detik. Area kosong berarti tidak ada orang."><svg class="i"><use href="#i-info"/></svg></button>
+                    </div>
+                    <div class="tl-lane"><div class="tl-inner" id="detInner"></div></div>
+                </div>
+                <div class="tl-row">
+                    <div class="tl-head">
+                        <svg class="i"><use href="#i-users"/></svg><span class="name">Jumlah</span>
+                        <button class="tl-info" aria-label="Info Jumlah"
+                            data-tip-title="Jumlah (bar teal)"
+                            data-tip="Berapa orang yang terdeteksi pada setiap rentang waktu. Bar baru dimulai setiap kali jumlahnya berubah, misalnya dari &quot;2 orang&quot; ke &quot;3 orang&quot;. Label muncul jika bar cukup lebar; perbesar zoom untuk melihatnya."><svg class="i"><use href="#i-info"/></svg></button>
+                    </div>
+                    <div class="tl-lane"><div class="tl-inner" id="cntInner"></div></div>
+                </div>
+                <div class="tl-row">
+                    <div class="tl-head">
+                        <svg class="i"><use href="#i-chart"/></svg><span class="name">Grafik</span>
+                        <button class="tl-info" aria-label="Info Grafik"
+                            data-tip-title="Grafik jumlah orang"
+                            data-tip="Grafik batang jumlah orang setiap 0,1 detik (diambil nilai tertinggi di interval itu). Tinggi batang relatif terhadap puncak sesi ini: batang paling tinggi = jumlah Puncak di panel Hasil. Tidak ada batang = 0 orang."><svg class="i"><use href="#i-info"/></svg></button>
+                    </div>
+                    <div class="tl-lane" id="laneChart"><canvas id="chart"></canvas></div>
+                </div>
+                <div class="playhead" id="playhead" hidden></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+<script type="module">
+import { connectors, webrtc, streams } from "/sdk.js";
+
+// API key, workspace & workflow diatur di server (server.mjs + .env), bukan di sini.
+const proxy = connectors.withProxyUrl("/api/init-webrtc", { turnConfigUrl: "/api/turn-config" });
+// Bungkus connector untuk menampilkan tahap koneksi di status
+const connector = {
+    async getIceServers() {
+        setStage("Menyiapkan koneksi");
+        return proxy.getIceServers();
+    },
+    async connectWrtc(offer, params) {
+        setStage("Menyalakan server GPU Roboflow");
+        const answer = await proxy.connectWrtc(offer, params);
+        setStage("Menyambungkan WebRTC");
+        return answer;
+    },
+};
+
+const el = (id) => document.getElementById(id);
+const video = el("video");
+const overlay = el("overlay");
+const octx = overlay.getContext("2d");
+
+const PLAN_LABEL = {
+    "webrtc-gpu-small": "GPU Small",
+    "webrtc-gpu-medium": "GPU Medium",
+    "webrtc-gpu-large": "GPU Large",
+};
+
+// ---------------- State ----------------
+const settings = loadSettings();
+let source = { type: "camera", deviceId: null, label: "Kamera default" };
+const media = [];
+let mediaSeq = 0;
+let cameras = [];
+let connection = null;
+let running = false;
+let busy = false;
+let session = newSession();
+
+const view = { pps: 40, start: 0, follow: true }; // pps = pixel per detik
+let dirty = true;
+let segsDirty = true;
+let lastHeavy = 0;
+let lastStats = 0;
+let covered = { from: 0, to: 0, pps: 0 };
+
+function newSession() {
+    // buckets[i] = jumlah orang maksimum pada interval 100 ms ke-i
+    return { startedAt: performance.now(), buckets: [], peak: 0, sum: 0, samples: 0, lastT: 0, last: null };
+}
+
+function loadSettings() {
+    const defaults = { plan: "webrtc-gpu-medium", region: "us", timeout: 3600, boxes: true, labels: true };
+    try {
+        return { ...defaults, ...JSON.parse(localStorage.getItem("pc-settings") || "{}") };
+    } catch {
+        return defaults;
+    }
+}
+
+function saveSettings() {
+    try { localStorage.setItem("pc-settings", JSON.stringify(settings)); } catch {}
+    el("planInfo").textContent = `${PLAN_LABEL[settings.plan]} · ${settings.region.toUpperCase()}`;
+}
+
+// ---------------- Tabs & rail ----------------
+function setTab(group, name) {
+    document.querySelectorAll(`[data-tabs="${group}"] .tab`).forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+    document.querySelectorAll(`[data-pane="${group}"]`).forEach((p) => { p.hidden = p.dataset.name !== name; });
+}
+
+document.querySelectorAll("[data-tabs] .tab").forEach((tab) => {
+    tab.onclick = () => setTab(tab.closest("[data-tabs]").dataset.tabs, tab.dataset.tab);
+});
+
+const RAIL = { camera: ["left", "camera"], media: ["left", "video"], results: ["right", "results"], settings: ["right", "settings"] };
+document.querySelectorAll(".rail-btn").forEach((btn) => {
+    btn.onclick = () => {
+        const [group, name] = RAIL[btn.dataset.rail];
+        setTab(group, name);
+        document.querySelectorAll(".rail-btn").forEach((b) => b.classList.toggle("active", b === btn));
+        if (matchMedia("(max-width: 1100px)").matches) {
+            el(group === "left" ? "leftPanel" : "rightPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+    };
+});
+
+// ---------------- Setelan ----------------
+el("plan").value = settings.plan;
+el("timeout").value = String(settings.timeout);
+el("optBoxes").checked = settings.boxes;
+el("optLabels").checked = settings.labels;
+el("plan").onchange = () => { settings.plan = el("plan").value; saveSettings(); };
+el("timeout").onchange = () => { settings.timeout = Number(el("timeout").value); saveSettings(); };
+el("optBoxes").onchange = () => { settings.boxes = el("optBoxes").checked; saveSettings(); drawBoxes(); };
+el("optLabels").onchange = () => { settings.labels = el("optLabels").checked; saveSettings(); drawBoxes(); };
+document.querySelectorAll("#region .chip").forEach((chip) => {
+    chip.onclick = () => { settings.region = chip.dataset.value; saveSettings(); renderRegion(); };
+});
+function renderRegion() {
+    document.querySelectorAll("#region .chip").forEach((c) => c.classList.toggle("active", c.dataset.value === settings.region));
+}
+renderRegion();
+saveSettings();
+
+// ---------------- Sumber: kamera ----------------
+async function loadCameras() {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+        el("cameraHint").textContent = "Browser memblokir kamera. Buka lewat https atau localhost.";
+    } else {
+        try {
+            cameras = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput" && d.deviceId);
+        } catch {
+            cameras = [];
+        }
+    }
+    renderCameras();
+}
+
+function renderCameras() {
+    const items = [
+        { deviceId: null, label: "Kamera default", sub: "Otomatis (kamera belakang di HP)" },
+        ...cameras.map((c, i) => ({ deviceId: c.deviceId, label: c.label || `Kamera ${i + 1}`, sub: "Perangkat terdeteksi" })),
+    ];
+    el("cameraList").replaceChildren(...items.map((item) => {
+        const btn = document.createElement("button");
+        btn.className = "device";
+        btn.classList.toggle("active", source.type === "camera" && source.deviceId === item.deviceId);
+        btn.innerHTML = `<span class="device-icon"><svg class="i"><use href="#i-camera"/></svg></span><span class="device-text"><strong></strong><small></small></span>`;
+        btn.querySelector("strong").textContent = item.label;
+        btn.querySelector("small").textContent = item.sub;
+        btn.onclick = () => selectSource({ type: "camera", deviceId: item.deviceId, label: item.label });
+        return btn;
+    }));
+}
+
+el("refreshCams").onclick = loadCameras;
+
+// ---------------- Sumber: video ----------------
+el("importInput").onchange = (e) => {
+    const files = [...e.target.files];
+    e.target.value = "";
+    for (const file of files) {
+        const item = { id: ++mediaSeq, file, name: file.name, thumb: "", duration: null };
+        media.unshift(item);
+        makeThumb(item).then(renderMedia);
+    }
+    if (files.length && !running) selectSource({ type: "file", id: media[0].id, file: media[0].file, label: media[0].name });
+    renderMedia();
+};
+el("mediaSearch").oninput = renderMedia;
+
+function makeThumb(item) {
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(item.file);
+        const v = document.createElement("video");
+        const done = () => { URL.revokeObjectURL(url); resolve(); };
+        v.muted = true;
+        v.preload = "metadata";
+        v.onerror = done;
+        v.onloadedmetadata = () => {
+            item.duration = v.duration;
+            v.currentTime = Math.min(1, (v.duration || 0) / 2);
+        };
+        v.onseeked = () => {
+            if (v.videoWidth) {
+                const c = document.createElement("canvas");
+                c.width = 320;
+                c.height = 240;
+                const s = Math.max(c.width / v.videoWidth, c.height / v.videoHeight);
+                const w = v.videoWidth * s, h = v.videoHeight * s;
+                c.getContext("2d").drawImage(v, (c.width - w) / 2, (c.height - h) / 2, w, h);
+                item.thumb = c.toDataURL("image/jpeg", 0.7);
+            }
+            done();
+        };
+        v.src = url;
+    });
+}
+
+function renderMedia() {
+    const q = el("mediaSearch").value.trim().toLowerCase();
+    const tiles = media.filter((m) => m.name.toLowerCase().includes(q)).map((m) => {
+        const btn = document.createElement("button");
+        btn.className = "media";
+        btn.classList.toggle("active", source.type === "file" && source.id === m.id);
+        btn.innerHTML = `<span class="thumb"><span class="dur"></span></span><span class="media-name"></span>`;
+        if (m.thumb) btn.querySelector(".thumb").style.backgroundImage = `url(${m.thumb})`;
+        const dur = btn.querySelector(".dur");
+        if (Number.isFinite(m.duration)) dur.textContent = fmt(m.duration); else dur.remove();
+        btn.querySelector(".media-name").textContent = m.name;
+        btn.onclick = () => selectSource({ type: "file", id: m.id, file: m.file, label: m.name });
+        return btn;
+    });
+    el("mediaGrid").replaceChildren(el("importTile"), ...tiles);
+    el("mediaEmpty").hidden = media.length > 0;
+}
+
+function selectSource(next) {
+    if (running || busy) return;
+    source = next;
+    el("sourceLabel").textContent = next.label;
+    el("sourceIcon").setAttribute("href", next.type === "camera" ? "#i-camera" : "#i-film");
+    renderCameras();
+    renderMedia();
+}
+
+// ---------------- Start / stop ----------------
+el("playBtn").onclick = toggle;
+el("startBtn").onclick = toggle;
+
+let attempt = 0;         // naik setiap Start/Batal, untuk mengabaikan koneksi yang sudah dibatalkan
+let pendingStream = null;
+
+async function toggle() {
+    if (busy) return cancelConnect();
+    if (running || connection) return stop();
+    const my = ++attempt;
+    busy = true;
+    setBusyUI(true);
+    setAlert("");
+    session = newSession();
+    view.start = 0;
+    view.follow = true;
+    markDirty(true);
+    try {
+        if (source.type === "camera") await startCamera(my);
+        else await startFile(my);
+        if (my !== attempt) return;
+        running = true;
+        setRunningUI(true);
+    } catch (err) {
+        if (my !== attempt) return;
+        showError(err);
+        await stop(true);
+    } finally {
+        if (my === attempt) {
+            busy = false;
+            setBusyUI(false);
+        }
+    }
+}
+
+function cancelConnect() {
+    attempt++;
+    busy = false;
+    streams.stopStream(pendingStream);
+    pendingStream = null;
+    setBusyUI(false);
+    stop(true);
+    setStatus("Dibatalkan", "idle");
+}
+
+function wrtcParams(extra = {}) {
+    return {
+        streamOutputNames: [],
+        dataOutputNames: ["predictions"],
+        processingTimeout: settings.timeout,
+        requestedPlan: settings.plan,
+        requestedRegion: settings.region,
+        ...extra,
+    };
+}
+
+// Pantau status WebRTC supaya koneksi yang gagal tidak menggantung
+const peerHooks = {
+    onPeerConnectionCreated(pc) {
+        pc.addEventListener("iceconnectionstatechange", () => console.info("[ICE]", pc.iceConnectionState));
+        pc.addEventListener("connectionstatechange", () => {
+            console.info("[WebRTC]", pc.connectionState);
+            if (pc.connectionState === "failed" && connection?.peerConnection === pc) {
+                showError(new Error("Koneksi WebRTC terputus. Cek jaringan/firewall lalu coba lagi."));
+                stop(true);
+            }
+        });
+    },
+};
+
+async function startCamera(my) {
+    setStage("Meminta akses kamera");
+    const constraints = source.deviceId ? { deviceId: { exact: source.deviceId } } : { facingMode: { ideal: "environment" } };
+    pendingStream = await streams.useCamera({ video: constraints, audio: false });
+    if (my !== attempt) return streams.stopStream(pendingStream);
+    loadCameras(); // label kamera tersedia setelah izin diberikan
+
+    const conn = await webrtc.useStream({
+        source: pendingStream,
+        connector,
+        wrtcParams: wrtcParams(),
+        onData: handleData,
+        hooks: peerHooks,
+    });
+    pendingStream = null;
+    if (my !== attempt) return conn.cleanup().catch(() => {});
+
+    connection = conn;
+    session.startedAt = performance.now();
+    // Tampilkan kamera lokal dulu; ganti ke video dari server jika tersedia
+    const local = conn.localStream();
+    if (local) showVideo(local);
+    conn.remoteStream().then((s) => { if (connection === conn) showVideo(s); });
+    setStatus("Live", "live");
+}
+
+async function startFile(my) {
+    const file = source.file;
+    if (!file) throw new Error("Pilih atau import video terlebih dahulu.");
+    setStage("Menyiapkan koneksi");
+    // useVideoFile otomatis memulai upload setelah tersambung
+    const conn = await webrtc.useVideoFile({
+        file,
+        connector,
+        wrtcParams: wrtcParams({ realtimeProcessing: false }),
+        onData: handleData,
+        hooks: peerHooks,
+        onUploadProgress: (sent, total) => {
+            if (my !== attempt) return;
+            if (sent < total) setStatus(`Upload ${Math.round(sent / total * 100)}%`, "busy");
+            else setStatus("Memproses", "live");
+        },
+        onComplete: () => {
+            if (my !== attempt) return;
+            setStatus("Selesai", "done");
+            stop(true);
+        },
+    });
+    if (my !== attempt) return conn.cleanup().catch(() => {});
+    connection = conn;
+    conn.remoteStream().then((s) => { if (connection === conn) showVideo(s); });
+}
+
+function showVideo(stream) {
+    video.srcObject = stream;
+    el("placeholder").hidden = true;
+}
+
+async function stop(keepStatus = false) {
+    const conn = connection;
+    if (running && source.type === "camera") session.lastT = elapsed();
+    connection = null;
+    running = false;
+    video.srcObject = null;
+    el("placeholder").hidden = false;
+    el("caption").hidden = true;
+    drawBoxes();
+    setRunningUI(false);
+    if (!keepStatus) setStatus("Siap", "idle");
+    markDirty(true);
+    renderStats();
+    await conn?.cleanup().catch(console.error);
+}
+
+function elapsed() {
+    if (running && source.type === "camera") return (performance.now() - session.startedAt) / 1000;
+    return session.lastT;
+}
+
+// ---------------- Data inference ----------------
+function handleData(data) {
+    if (data.errors?.length) setAlert(data.errors.join("\n"));
+    const output = data.serialized_output_data?.predictions;
+    if (!output) return;
+
+    const preds = output.predictions ?? [];
+    const meta = data.video_metadata;
+    const t = source.type === "file" && meta?.pts != null && meta?.time_base
+        ? meta.pts * meta.time_base
+        : (performance.now() - session.startedAt) / 1000;
+
+    const i = Math.max(0, Math.floor(t * 10));
+    session.buckets[i] = Math.max(session.buckets[i] ?? 0, preds.length);
+    session.peak = Math.max(session.peak, preds.length);
+    session.sum += preds.length;
+    session.samples++;
+    session.lastT = Math.max(session.lastT, t);
+    session.last = { preds, image: output.image, meta };
+
+    el("count").textContent = preds.length;
+    el("captionCount").textContent = preds.length;
+    el("caption").hidden = !running;
+    el("countSub").textContent = meta?.frame_id != null ? `Frame ${meta.frame_id}` : "Live";
+    drawBoxes();
+    markDirty(true);
+}
+
+function drawBoxes() {
+    const last = session.last;
+    if (!last || !video.srcObject) {
+        octx.clearRect(0, 0, overlay.width, overlay.height);
+        return;
+    }
+    const w = last.image?.width || video.videoWidth;
+    const h = last.image?.height || video.videoHeight;
+    if (!w || !h) return;
+    if (overlay.width !== w) overlay.width = w;
+    if (overlay.height !== h) overlay.height = h;
+
+    // Samakan canvas dengan area video (object-fit: contain)
+    const box = el("stage").getBoundingClientRect();
+    const s = Math.min(box.width / w, box.height / h);
+    Object.assign(overlay.style, {
+        width: `${w * s}px`,
+        height: `${h * s}px`,
+        left: `${(box.width - w * s) / 2}px`,
+        top: `${(box.height - h * s) / 2}px`,
+    });
+
+    octx.clearRect(0, 0, w, h);
+    if (!settings.boxes) return;
+    const fontSize = Math.max(12, Math.round(w / 55));
+    octx.lineWidth = Math.max(2, w / 360);
+    octx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+    for (const p of last.preds) {
+        const x = p.x - p.width / 2;
+        const y = p.y - p.height / 2;
+        octx.strokeStyle = "#b54ce6";
+        octx.strokeRect(x, y, p.width, p.height);
+        if (!settings.labels) continue;
+        const label = `${p.class} ${Math.round(p.confidence * 100)}%`;
+        const th = fontSize + 8;
+        const ty = Math.max(0, y - th);
+        octx.fillStyle = "#b54ce6";
+        octx.fillRect(x, ty, octx.measureText(label).width + 10, th);
+        octx.fillStyle = "#fff";
+        octx.fillText(label, x + 5, ty + th - 6);
+    }
+}
+
+new ResizeObserver(() => { drawBoxes(); markDirty(true); }).observe(el("stage"));
+
+function renderStats() {
+    const has = session.samples > 0;
+    el("statPeak").textContent = has ? session.peak : "–";
+    el("statAvg").textContent = has ? (session.sum / session.samples).toFixed(1) : "–";
+    const fps = session.last?.meta?.measured_fps;
+    el("statFps").textContent = fps ? fps.toFixed(1) : "–";
+    el("statDur").textContent = fmt(elapsed());
+    el("exportBtn").disabled = !has;
+    el("resetBtn").disabled = running || !has;
+
+    const preds = (session.last?.preds ?? []).slice().sort((a, b) => b.confidence - a.confidence).slice(0, 12);
+    el("detList").replaceChildren(...preds.map((p, idx) => {
+        const pct = Math.round(p.confidence * 100);
+        const row = document.createElement("div");
+        row.className = "det";
+        row.innerHTML = `<span class="det-name"></span><span class="bar"><span style="width:${pct}%"></span></span><span class="det-conf">${pct}%</span>`;
+        row.querySelector(".det-name").textContent = `${p.class} #${idx + 1}`;
+        return row;
+    }));
+    el("detEmpty").hidden = preds.length > 0;
+}
+
+// ---------------- Timeline ----------------
+function markDirty(segments = false) {
+    dirty = true;
+    if (segments) segsDirty = true;
+}
+
+function frame() {
+    if (running || dirty) renderLight();
+    requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function renderLight() {
+    dirty = false;
+    const now = elapsed();
+    const laneW = el("laneChart").clientWidth;
+    const span = laneW / view.pps;
+    const tNow = performance.now();
+
+    el("timecode").textContent = fmt(now);
+    if (view.follow && running) {
+        const lead = span * 0.85;
+        if (now > view.start + lead) view.start = now - lead;
+    }
+    const from = view.start;
+    const to = view.start + span;
+
+    const outOfRange = covered.pps !== view.pps || from < covered.from || to > covered.to;
+    if (outOfRange || segsDirty) {
+        if (outOfRange || tNow - lastHeavy > 250) {
+            renderHeavy(from - span, to + span);
+            lastHeavy = tNow;
+            segsDirty = false;
+        } else {
+            dirty = true; // coba lagi di frame berikutnya
+        }
+    }
+    if (tNow - lastStats > 250) {
+        renderStats();
+        lastStats = tNow;
+    }
+
+    const shift = `translateX(${-view.start * view.pps}px)`;
+    el("rulerInner").style.transform = shift;
+    el("detInner").style.transform = shift;
+    el("cntInner").style.transform = shift;
+
+    const x = (now - view.start) * view.pps;
+    const playhead = el("playhead");
+    playhead.hidden = !(running || session.samples) || x < 0 || x > laneW;
+    playhead.style.setProperty("--x", `${x}px`);
+
+    drawChart(from, to, laneW);
+    el("followBtn").classList.toggle("active", view.follow);
+}
+
+function renderHeavy(from, to) {
+    covered = { from, to, pps: view.pps };
+    const pps = view.pps;
+
+    // Penggaris waktu
+    const step = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 1800].find((s) => s * pps >= 70) ?? 3600;
+    let ticks = "";
+    for (let t = Math.max(0, Math.floor(from / step) * step); t <= to; t += step) {
+        ticks += `<div class="tick" style="left:${t * pps}px">${fmt(t)}</div>`;
+    }
+    el("rulerInner").innerHTML = ticks;
+
+    // Segmen deteksi & jumlah (celah > 1 detik memutus segmen)
+    const b = session.buckets;
+    const det = [];
+    const cnt = [];
+    let d = null, c = null, last = -Infinity;
+    for (let i = 0; i < b.length; i++) {
+        const v = b[i];
+        if (v === undefined) continue;
+        const gap = i - last > 10;
+        if (d && (v === 0 || gap)) { d.end = last + 1; det.push(d); d = null; }
+        if (c && (v !== c.v || gap)) { c.end = last + 1; cnt.push(c); c = null; }
+        if (v > 0 && !d) d = { start: i };
+        if (v > 0 && !c) c = { start: i, v };
+        last = i;
+    }
+    if (d) { d.end = last + 1; det.push(d); }
+    if (c) { c.end = last + 1; cnt.push(c); }
+
+    const html = (segs, cls, label, minLabel) => segs
+        .filter((s) => s.end / 10 >= from && s.start / 10 <= to)
+        .map((s) => {
+            const left = (s.start / 10) * pps;
+            const width = Math.max(3, ((s.end - s.start) / 10) * pps - 2);
+            return `<div class="seg ${cls}" style="left:${left}px;width:${width}px">${width >= minLabel ? label(s) : ""}</div>`;
+        })
+        .join("");
+    el("detInner").innerHTML = html(det, "", () => "Orang terdeteksi", 110);
+    el("cntInner").innerHTML = html(cnt, "teal", (s) => `${s.v} orang`, 56);
+}
+
+function drawChart(from, to, w) {
+    const canvas = el("chart");
+    const h = canvas.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+    }
+    const g = canvas.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+
+    const b = session.buckets;
+    const peak = Math.max(1, session.peak);
+    const barW = Math.max(1, view.pps / 10 - (view.pps >= 30 ? 1 : 0));
+    g.fillStyle = "#35b3c6";
+    const end = Math.min(b.length, Math.ceil(to * 10) + 1);
+    for (let i = Math.max(0, Math.floor(from * 10)); i < end; i++) {
+        const v = b[i];
+        if (!v) continue;
+        const barH = Math.max(2, (v / peak) * (h - 10));
+        g.fillRect((i / 10 - from) * view.pps, h - 5 - barH, barW, barH);
+    }
+}
+
+function setZoom(pps) {
+    view.pps = Math.min(200, Math.max(5, Math.round(pps)));
+    el("zoom").value = view.pps;
+    markDirty(true);
+}
+el("zoom").oninput = () => setZoom(Number(el("zoom").value));
+el("zoomIn").onclick = () => setZoom(view.pps * 1.4);
+el("zoomOut").onclick = () => setZoom(view.pps / 1.4);
+el("followBtn").onclick = () => { view.follow = !view.follow; markDirty(); };
+el("resetBtn").onclick = () => {
+    if (running) return;
+    session = newSession();
+    view.start = 0;
+    el("count").textContent = "–";
+    el("countSub").textContent = "Belum ada data";
+    markDirty(true);
+    renderStats();
+};
+
+const tlBody = el("tlBody");
+tlBody.addEventListener("wheel", (e) => {
+    if (e.ctrlKey) {
+        e.preventDefault();
+        setZoom(view.pps * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+        return;
+    }
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.shiftKey ? e.deltaY : 0;
+    if (!delta) return;
+    e.preventDefault();
+    view.start = Math.max(0, view.start + delta / view.pps);
+    view.follow = false;
+    markDirty();
+}, { passive: false });
+
+let drag = null;
+tlBody.addEventListener("pointerdown", (e) => { drag = { id: e.pointerId, x: e.clientX, start: view.start, moved: false }; });
+window.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x;
+    if (Math.abs(dx) > 3) drag.moved = true;
+    if (!drag.moved) return;
+    view.start = Math.max(0, drag.start - dx / view.pps);
+    view.follow = false;
+    markDirty();
+});
+window.addEventListener("pointerup", () => { drag = null; });
+window.addEventListener("pointercancel", () => { drag = null; });
+
+// ---------------- Tooltip info timeline ----------------
+const tooltip = el("tooltip");
+let tipOwner = null;
+
+function showTip(btn) {
+    tipOwner = btn;
+    const title = document.createElement("strong");
+    title.textContent = btn.dataset.tipTitle;
+    const body = document.createElement("span");
+    body.textContent = btn.dataset.tip;
+    tooltip.replaceChildren(title, body);
+    tooltip.hidden = false;
+    document.querySelectorAll(".tl-info").forEach((b) => {
+        b.setAttribute("aria-expanded", String(b === btn));
+        if (b === btn) b.setAttribute("aria-describedby", "tooltip");
+        else b.removeAttribute("aria-describedby");
+    });
+
+    // Tampil di atas tombol; pindah ke bawah jika tidak muat
+    const r = btn.getBoundingClientRect();
+    const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+    let top = r.top - th - 10;
+    tooltip.dataset.place = "top";
+    if (top < 8) {
+        top = r.bottom + 10;
+        tooltip.dataset.place = "bottom";
+    }
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+    tooltip.style.setProperty("--ax", `${r.left + r.width / 2 - left}px`);
+}
+
+function hideTip() {
+    if (!tipOwner) return;
+    tipOwner.setAttribute("aria-expanded", "false");
+    tipOwner.removeAttribute("aria-describedby");
+    tipOwner = null;
+    tooltip.hidden = true;
+}
+
+document.querySelectorAll(".tl-info").forEach((btn) => {
+    btn.setAttribute("aria-expanded", "false");
+    btn.addEventListener("mouseenter", () => showTip(btn));
+    btn.addEventListener("mouseleave", hideTip);
+    btn.addEventListener("focus", () => showTip(btn));
+    btn.addEventListener("blur", hideTip);
+    btn.addEventListener("click", () => showTip(btn)); // untuk layar sentuh
+});
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".tl-info")) hideTip(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideTip(); });
+window.addEventListener("scroll", hideTip, true);
+window.addEventListener("resize", hideTip);
+
+// ---------------- Snapshot, fullscreen, export ----------------
+function snapshot() {
+    if (!video.videoWidth) return setAlert("Snapshot tersedia saat video sedang tampil.");
+    const c = document.createElement("canvas");
+    c.width = video.videoWidth;
+    c.height = video.videoHeight;
+    const g = c.getContext("2d");
+    g.drawImage(video, 0, 0);
+    if (overlay.width) g.drawImage(overlay, 0, 0, c.width, c.height);
+    c.toBlob((blob) => download(blob, `snapshot-${stamp()}.png`), "image/png");
+}
+el("snapBtn").onclick = snapshot;
+el("snapBtn2").onclick = snapshot;
+
+el("fullBtn").onclick = () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else el("stage").requestFullscreen?.().catch(() => {});
+};
+
+el("exportBtn").onclick = () => {
+    const rows = ["detik,jumlah_orang"];
+    session.buckets.forEach((v, i) => { if (v !== undefined) rows.push(`${(i / 10).toFixed(1)},${v}`); });
+    download(new Blob([rows.join("\n")], { type: "text/csv" }), `people-count-${stamp()}.csv`);
+};
+
+function download(blob, name) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---------------- UI helpers ----------------
+function setRunningUI(on, label = "Stop") {
+    document.body.classList.toggle("is-running", on);
+    el("playBtn").classList.toggle("running", on);
+    el("playBtn").title = on ? label : "Start";
+    el("playIcon").setAttribute("href", on ? "#i-stop" : "#i-play");
+    el("startIcon").setAttribute("href", on ? "#i-stop" : "#i-play");
+    el("startLabel").textContent = on ? label : "Start";
+    el("startBtn").classList.toggle("btn-dark", !on);
+    el("startBtn").classList.toggle("btn-danger", on);
+}
+
+// Saat menghubungkan, tombol Start berubah jadi "Batal"
+function setBusyUI(on) {
+    setRunningUI(on, "Batal");
+}
+
+let stageTimer = null;
+
+function setStage(text) {
+    clearInterval(stageTimer);
+    const t0 = performance.now();
+    const tick = () => writeStatus(`${text}… ${Math.floor((performance.now() - t0) / 1000)} dtk`, "busy");
+    tick();
+    stageTimer = setInterval(tick, 1000);
+}
+
+function setStatus(text, state) {
+    clearInterval(stageTimer);
+    stageTimer = null;
+    writeStatus(text, state);
+}
+
+function writeStatus(text, state) {
+    el("status").textContent = text;
+    el("status").dataset.state = state;
+}
+
+function setAlert(message) {
+    el("alert").textContent = message;
+    el("alert").hidden = !message;
+}
+
+function showError(err) {
+    console.error(err);
+    setStatus("Error", "error");
+    setTab("right", "results");
+    setAlert(err?.errorData?.message ?? err?.message ?? String(err));
+}
+
+function fmt(sec) {
+    const s = Math.max(0, Math.floor(sec || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const pad = (n) => String(n).padStart(2, "0");
+    return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
+}
+
+function stamp() {
+    return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+}
+
+loadCameras();
+renderMedia();
+renderStats();
+</script>
+</body>
+</html>
