@@ -788,7 +788,11 @@ let covered = { from: 0, to: 0, pps: 0 };
 
 function newSession() {
     // buckets[i] = jumlah orang maksimum pada interval 100 ms ke-i
-    return { startedAt: performance.now(), buckets: [], peak: 0, sum: 0, samples: 0, lastT: 0, last: null };
+    // frames = hasil per waktu frame (mode file) untuk sinkron dengan video yang diputar
+    return {
+        startedAt: performance.now(), buckets: [], peak: 0, sum: 0, samples: 0, lastT: 0, last: null,
+        frames: [], timed: false, waiting: false, complete: false,
+    };
 }
 
 function loadSettings() {
@@ -986,8 +990,6 @@ async function toggle() {
 function cancelConnect() {
     attempt++;
     busy = false;
-    streams.stopStream(pendingStream);
-    pendingStream = null;
     setBusyUI(false);
     stop(true);
     setStatus("Dibatalkan", "idle");
@@ -1018,35 +1020,50 @@ const peerHooks = {
     },
 };
 
+// Workflow tidak mengirim video balik (streamOutputNames kosong), jadi yang ditampilkan
+// selalu video lokal: kamera langsung dari browser, atau file yang diputar di browser.
 async function startCamera(my) {
     setStage("Meminta akses kamera");
     const constraints = source.deviceId ? { deviceId: { exact: source.deviceId } } : { facingMode: { ideal: "environment" } };
-    pendingStream = await streams.useCamera({ video: constraints, audio: false });
-    if (my !== attempt) return streams.stopStream(pendingStream);
-    loadCameras(); // label kamera tersedia setelah izin diberikan
+    let stream;
+    try {
+        stream = await streams.useCamera({ video: constraints, audio: false });
+    } catch (err) {
+        throw new Error(cameraErrorMessage(err));
+    }
+    if (my !== attempt) return streams.stopStream(stream);
+    pendingStream = stream;
+    showStream(stream); // preview langsung tampil sambil menunggu server
+    loadCameras();      // label kamera tersedia setelah izin diberikan
 
     const conn = await webrtc.useStream({
-        source: pendingStream,
+        source: stream,
         connector,
         wrtcParams: wrtcParams(),
         onData: handleData,
         hooks: peerHooks,
     });
-    pendingStream = null;
     if (my !== attempt) return conn.cleanup().catch(() => {});
-
+    pendingStream = null;
     connection = conn;
     session.startedAt = performance.now();
-    // Tampilkan kamera lokal dulu; ganti ke video dari server jika tersedia
-    const local = conn.localStream();
-    if (local) showVideo(local);
-    conn.remoteStream().then((s) => { if (connection === conn) showVideo(s); });
     setStatus("Live", "live");
+}
+
+function cameraErrorMessage(err) {
+    switch (err?.name) {
+        case "NotAllowedError": return "Akses kamera ditolak. Klik ikon kamera di address bar lalu izinkan, kemudian coba lagi.";
+        case "NotReadableError": return "Kamera sedang dipakai aplikasi lain (Zoom, Meet, OBS, dll). Tutup aplikasi itu lalu coba lagi.";
+        case "NotFoundError":
+        case "OverconstrainedError": return "Kamera tidak ditemukan. Pilih kamera lain di panel Kamera.";
+        default: return `Kamera tidak bisa dibuka: ${err?.message ?? err}`;
+    }
 }
 
 async function startFile(my) {
     const file = source.file;
     if (!file) throw new Error("Pilih atau import video terlebih dahulu.");
+    showFile(file);
     setStage("Menyiapkan koneksi");
     // useVideoFile otomatis memulai upload setelah tersambung
     const conn = await webrtc.useVideoFile({
@@ -1056,24 +1073,66 @@ async function startFile(my) {
         onData: handleData,
         hooks: peerHooks,
         onUploadProgress: (sent, total) => {
-            if (my !== attempt) return;
+            if (my !== attempt || session.waiting) return;
             if (sent < total) setStatus(`Upload ${Math.round(sent / total * 100)}%`, "busy");
             else setStatus("Memproses", "live");
         },
         onComplete: () => {
             if (my !== attempt) return;
-            setStatus("Selesai", "done");
-            stop(true);
+            finishFile();
         },
     });
     if (my !== attempt) return conn.cleanup().catch(() => {});
     connection = conn;
-    conn.remoteStream().then((s) => { if (connection === conn) showVideo(s); });
+    video.play().catch(() => {});
 }
 
-function showVideo(stream) {
+// Semua frame sudah diproses: tutup koneksi, video tetap bisa diputar ulang dengan hasilnya
+function finishFile() {
+    const conn = connection;
+    connection = null;
+    running = false;
+    session.complete = true;
+    if (session.waiting) {
+        session.waiting = false;
+        video.play().catch(() => {});
+    }
+    setRunningUI(false);
+    setStatus("Selesai diproses", "done");
+    markDirty(true);
+    conn?.cleanup().catch(console.error);
+}
+
+function showStream(stream) {
+    clearFile();
+    video.controls = false;
     video.srcObject = stream;
     el("placeholder").hidden = true;
+}
+
+let fileUrl = null;
+
+function showFile(file) {
+    clearFile();
+    video.srcObject = null;
+    fileUrl = URL.createObjectURL(file);
+    video.src = fileUrl;
+    video.controls = true;
+    video.pause(); // mulai diputar setelah koneksi siap
+    el("placeholder").hidden = true;
+}
+
+function clearFile() {
+    if (!fileUrl) return;
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    URL.revokeObjectURL(fileUrl);
+    fileUrl = null;
+}
+
+function hasVideo() {
+    return !!(video.srcObject || fileUrl);
 }
 
 async function stop(keepStatus = false) {
@@ -1081,7 +1140,13 @@ async function stop(keepStatus = false) {
     if (running && source.type === "camera") session.lastT = elapsed();
     connection = null;
     running = false;
+    session.waiting = false;
+    streams.stopStream(pendingStream);
+    pendingStream = null;
+    if (video.srcObject) streams.stopStream(video.srcObject);
     video.srcObject = null;
+    video.controls = false;
+    clearFile();
     el("placeholder").hidden = false;
     el("caption").hidden = true;
     drawBoxes();
@@ -1093,11 +1158,18 @@ async function stop(keepStatus = false) {
 }
 
 function elapsed() {
+    if (fileUrl) return video.currentTime || 0;
     if (running && source.type === "camera") return (performance.now() - session.startedAt) / 1000;
     return session.lastT;
 }
 
 // ---------------- Data inference ----------------
+function frameTime(meta) {
+    if (meta?.pts != null && meta?.time_base) return meta.pts * meta.time_base;
+    if (meta?.frame_id != null && meta?.declared_fps) return meta.frame_id / meta.declared_fps;
+    return null;
+}
+
 function handleData(data) {
     if (data.errors?.length) setAlert(data.errors.join("\n"));
     const output = data.serialized_output_data?.predictions;
@@ -1105,9 +1177,21 @@ function handleData(data) {
 
     const preds = output.predictions ?? [];
     const meta = data.video_metadata;
-    const t = source.type === "file" && meta?.pts != null && meta?.time_base
-        ? meta.pts * meta.time_base
-        : (performance.now() - session.startedAt) / 1000;
+    const result = { preds, image: output.image, meta };
+    let t = (performance.now() - session.startedAt) / 1000;
+
+    if (source.type === "file") {
+        const ft = frameTime(meta);
+        if (ft != null) {
+            t = ft;
+            session.timed = true;
+            // simpan per waktu frame agar kotak sinkron dengan video yang diputar
+            result.t = ft;
+            const frames = session.frames;
+            frames.push(result);
+            if (frames.length > 1 && frames[frames.length - 2].t > ft) frames.sort((a, b) => a.t - b.t);
+        }
+    }
 
     const i = Math.max(0, Math.floor(t * 10));
     session.buckets[i] = Math.max(session.buckets[i] ?? 0, preds.length);
@@ -1115,24 +1199,40 @@ function handleData(data) {
     session.sum += preds.length;
     session.samples++;
     session.lastT = Math.max(session.lastT, t);
-    session.last = { preds, image: output.image, meta };
+    session.last = result;
 
-    el("count").textContent = preds.length;
-    el("captionCount").textContent = preds.length;
-    el("caption").hidden = !running;
-    el("countSub").textContent = meta?.frame_id != null ? `Frame ${meta.frame_id}` : "Live";
     drawBoxes();
     markDirty(true);
 }
 
+// Hasil yang cocok dengan frame yang sedang tampil
+function currentResult() {
+    if (!fileUrl || !session.timed) return session.last;
+    const frames = session.frames;
+    const time = video.currentTime + 0.02;
+    let lo = 0, hi = frames.length - 1, found = null;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (frames[mid].t <= time) { found = frames[mid]; lo = mid + 1; }
+        else hi = mid - 1;
+    }
+    return found;
+}
+
 function drawBoxes() {
-    const last = session.last;
-    if (!last || !video.srcObject) {
+    const result = hasVideo() ? currentResult() : null;
+    const count = result ? result.preds.length : null;
+    el("count").textContent = count ?? "–";
+    el("captionCount").textContent = count ?? 0;
+    el("caption").hidden = count == null;
+    el("countSub").textContent = result?.meta?.frame_id != null ? `Frame ${result.meta.frame_id}` : result ? "Live" : "Belum ada data";
+
+    if (!result) {
         octx.clearRect(0, 0, overlay.width, overlay.height);
         return;
     }
-    const w = last.image?.width || video.videoWidth;
-    const h = last.image?.height || video.videoHeight;
+    const w = result.image?.width || video.videoWidth;
+    const h = result.image?.height || video.videoHeight;
     if (!w || !h) return;
     if (overlay.width !== w) overlay.width = w;
     if (overlay.height !== h) overlay.height = h;
@@ -1152,7 +1252,7 @@ function drawBoxes() {
     const fontSize = Math.max(12, Math.round(w / 55));
     octx.lineWidth = Math.max(2, w / 360);
     octx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
-    for (const p of last.preds) {
+    for (const p of result.preds) {
         const x = p.x - p.width / 2;
         const y = p.y - p.height / 2;
         octx.strokeStyle = "#b54ce6";
@@ -1168,6 +1268,23 @@ function drawBoxes() {
     }
 }
 
+// Jeda video otomatis jika pemutaran mendahului hasil deteksi dari server
+function syncFilePlayback() {
+    if (!fileUrl || !running || !session.timed) return;
+    const ct = video.currentTime;
+    if (!session.waiting && !video.paused && ct > session.lastT + 0.2) {
+        session.waiting = true;
+        video.pause();
+        setStage("Menunggu hasil deteksi");
+    } else if (session.waiting && session.lastT >= Math.min(ct + 1.5, video.duration || Infinity)) {
+        session.waiting = false;
+        setStatus("Memproses", "live");
+        video.play().catch(() => {});
+    }
+}
+
+video.addEventListener("seeked", () => { drawBoxes(); markDirty(); });
+
 new ResizeObserver(() => { drawBoxes(); markDirty(true); }).observe(el("stage"));
 
 function renderStats() {
@@ -1180,7 +1297,8 @@ function renderStats() {
     el("exportBtn").disabled = !has;
     el("resetBtn").disabled = running || !has;
 
-    const preds = (session.last?.preds ?? []).slice().sort((a, b) => b.confidence - a.confidence).slice(0, 12);
+    const result = hasVideo() ? currentResult() : session.last;
+    const preds = (result?.preds ?? []).slice().sort((a, b) => b.confidence - a.confidence).slice(0, 12);
     el("detList").replaceChildren(...preds.map((p, idx) => {
         const pct = Math.round(p.confidence * 100);
         const row = document.createElement("div");
@@ -1199,7 +1317,12 @@ function markDirty(segments = false) {
 }
 
 function frame() {
-    if (running || dirty) renderLight();
+    const playing = fileUrl && !video.paused;
+    if (fileUrl) {
+        syncFilePlayback();
+        if (playing) drawBoxes();
+    }
+    if (running || dirty || playing) renderLight();
     requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -1212,7 +1335,7 @@ function renderLight() {
     const tNow = performance.now();
 
     el("timecode").textContent = fmt(now);
-    if (view.follow && running) {
+    if (view.follow && (running || (fileUrl && !video.paused))) {
         const lead = span * 0.85;
         if (now > view.start + lead) view.start = now - lead;
     }
